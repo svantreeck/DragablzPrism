@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Windows;
@@ -154,9 +155,13 @@ namespace CHRobinson.Enterprise.Shell.Regions.Behaviors
             var proxy = GetProxy(view);
             var window = GetWindow(view);
 
-            
-            window.SelectedItem = proxy;
-            window.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+            Debug.WriteLine($"Activating {proxy.CommonData.Title}");
+
+            if (window.SelectedItem != proxy || window != this.activeWindow)
+            {
+                window.SelectedItem = proxy;
+                window.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+            }
         }
 
         private void SetActiveView(TabablzControl window)
@@ -196,9 +201,11 @@ namespace CHRobinson.Enterprise.Shell.Regions.Behaviors
 
         private TabablzControl GetWindow(object view)
         {
+            var proxy = GetProxy(view);
+
             foreach (var window in this.windows)
             {
-                if (ContainsView(window, view))
+                if (ContainsView(window, proxy))
                 {
                     return window;
                 }
@@ -207,11 +214,11 @@ namespace CHRobinson.Enterprise.Shell.Regions.Behaviors
             return null;
         }
 
-        private bool ContainsView(TabablzControl window, object view)
+        private bool ContainsView(TabablzControl window, TabClientProxy proxy)
         {
-            if (view == null || window == null) return false;
+            if (proxy == null || window == null) return false;
 
-            return window.Items.OfType<TabClientProxy>().Any(tc => tc.Content == view);
+            return window.Items.OfType<TabClientProxy>().Any(tc => tc == proxy);
         }
 
         private TabClientProxy GetProxy(object view)
