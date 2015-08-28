@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Dragablz;
@@ -22,13 +23,11 @@ namespace CHRobinson.Enterprise.Shell.Regions.Behaviors
 
         private TabablzControl activeWindow;
         private readonly ObservableCollection<TabablzControl> windows;
-        private readonly Dictionary<object, TabablzControl> itemToWindowMapping;
         private readonly Dictionary<object, TabClientProxy> itemToTabClientMapping;
 
         public DragablzWindowBehavior()
         {
             this.windows = new ObservableCollection<TabablzControl>();
-            this.itemToWindowMapping = new Dictionary<object, TabablzControl>();
             this.itemToTabClientMapping = new Dictionary<object, TabClientProxy>();
         }
 
@@ -155,16 +154,25 @@ namespace CHRobinson.Enterprise.Shell.Regions.Behaviors
             var proxy = GetProxy(view);
             var window = GetWindow(view);
 
-            SetActiveView(window);
+            
             window.SelectedItem = proxy;
             window.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
         }
 
         private void SetActiveView(TabablzControl window)
         {
-            this.activeWindow = window;
-            this.activeWindow.BringIntoView();
-            this.activeWindow.Focus();
+            if (this.activeWindow != window)
+            {
+                this.activeWindow = window;
+                this.activeWindow.BringIntoView();
+                this.activeWindow.Focus();
+
+                var view = this.activeWindow.SelectedItem as TabClientProxy;
+                if (view != null && this.Region.Views.Contains(view.Content))
+                {
+                    this.Region.Activate(view.Content);
+                }
+            }
         }
 
         private void RemoveView(object view)
@@ -178,7 +186,6 @@ namespace CHRobinson.Enterprise.Shell.Regions.Behaviors
 
         private void CleanUp(object view)
         {
-            this.itemToWindowMapping.Remove(view);
             this.itemToTabClientMapping.Remove(view);
         }
 
@@ -189,7 +196,22 @@ namespace CHRobinson.Enterprise.Shell.Regions.Behaviors
 
         private TabablzControl GetWindow(object view)
         {
-            return this.itemToWindowMapping[view];
+            foreach (var window in this.windows)
+            {
+                if (ContainsView(window, view))
+                {
+                    return window;
+                }
+            }
+
+            return null;
+        }
+
+        private bool ContainsView(TabablzControl window, object view)
+        {
+            if (view == null || window == null) return false;
+
+            return window.Items.OfType<TabClientProxy>().Any(tc => tc.Content == view);
         }
 
         private TabClientProxy GetProxy(object view)
@@ -206,8 +228,6 @@ namespace CHRobinson.Enterprise.Shell.Regions.Behaviors
             };
 
             this.itemToTabClientMapping.Add(view, proxy);
-            this.itemToWindowMapping.Add(view, this.activeWindow);
-
 
             return proxy;
         }
